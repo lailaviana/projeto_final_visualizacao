@@ -1,0 +1,221 @@
+---
+title: "Personalidade dos personagens da série Vikings"
+toc: true
+toc-location: left
+code-fold: true
+format: 
+  html:
+    code-tools: true
+editor: visual
+theme: flatly
+---
+
+## TidyTuesday
+
+O tidytuesday se trata de um projeto semanal que disponibiliza datasets para explorar as habilidades de manipulação e visualização de dados utilizando, principalmente, as ferramentas do `tidyverse`.
+
+## Dataset utilizado
+
+Para o projeto final do curso Visualização de Dados foi utilizado o [dataset](https://github.com/rfordatascience/tidytuesday/tree/master/data/2022/2022-08-16) disponibilizado no dia 16/08/2022. Esse dataset veio do [Open-Source Psychometrics Project](https://openpsychometrics.org/) e inclui informações sobre personagens de diversas séries e seus traços de personalidade. Como são muitos, escolhi os personagens da série **Vikings** para analisar.
+
+## Pacotes utilizados nas análises
+
+Para as análises utilizei os pacotes:
+
+```{r, echo=TRUE, message=FALSE}
+library(tidyverse)
+library(showtext)
+library(ggradar2)
+library(knitr)
+```
+
+## Baixando os datasets
+
+O download do dataset foi feito por meio do link presente no repositório do github.
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+characters <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-08-16/characters.csv')
+psych_stats <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-08-16/psych_stats.csv')
+myers_briggs <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-08-16/myers_briggs.csv')
+  
+```
+
+```{r, echo=FALSE}
+font_add_google(family="Asul", "Asul")
+showtext_auto()
+
+# Theme Setup
+font <- "Asul"
+font_color <- "black" # white
+line_color <- "black" # white
+bcolor <- "grey" # grey
+```
+
+## Explorando os dados
+
+### Arquivo Personagens
+
+```{r}
+glimpse(characters)
+```
+
+### Arquivo Psych Stats
+
+```{r}
+glimpse(psych_stats)
+```
+
+### Arquivo Myers Briggs
+
+```{r}
+glimpse(myers_briggs)
+```
+
+## Myers Briggs
+
+O teste de Myers Briggs foi criado por Isabel Myers e Katharine Briggs e visa classificar a pessoa dentro de 16 personalidades, que podem ser acessadas com mais detalhe nesse [site](https://www.truity.com/page/16-personality-types-myers-briggs). Sabendo disso, os personagens de Vikings foram analisados e foi possível observar que a maioria é considerado ENTJ (Líder) e ENTP (Visionários). As personalidades chamadas de Protetor, Professor e Dinâmico também foram encontradas.
+
+```{r}
+myers_briggs <- myers_briggs |>
+  mutate(label = case_when(
+    myers_briggs == "INTJ" ~ "Mastermind",
+    myers_briggs == "INTP" ~ "Architect",
+    myers_briggs == "ENTJ" ~ "Commander",
+    myers_briggs == "ENTP" ~ "Visionary",
+    myers_briggs == "INFJ" ~ "Counselor",
+    myers_briggs == "INFP" ~ "Healer",
+    myers_briggs == "ENFJ" ~ "Teacher",
+    myers_briggs == "ENFP" ~ "Champion",
+    myers_briggs == "ISTJ" ~ "Inspector",
+    myers_briggs == "ISFJ" ~ "Protector",
+    myers_briggs == "ESTJ" ~ "Supervisor",
+    myers_briggs == "ESFJ" ~ "Provider",
+    myers_briggs == "ISTP" ~ "Crafter",
+    myers_briggs == "ISFP" ~ "Composer",
+    myers_briggs == "ESTP" ~ "Dynamo",
+    myers_briggs == "ESFP" ~ "Performer",
+    TRUE ~ "None"))
+
+myers_count <- myers_briggs |> 
+  filter(uni_name == "Vikings")  |>
+  group_by(char_name) |> 
+  mutate(max_match = max(avg_match_perc)) |> 
+  ungroup() |> 
+  filter(max_match == avg_match_perc) |>
+  group_by(label) |> count()
+  
+myers_count |> 
+  ggplot(aes(y = n, x = label, fill = label)) + 
+  geom_col(show.legend = FALSE) + 
+  theme_bw() + 
+  labs(y = "Número de Personagens", x = "Personalidade") +
+  theme(text = element_text(family = font, size = 30)) +
+  scale_fill_brewer(palette = "Spectral")
+```
+
+Dentre os considerados Líderes (Commanders) temos Bjorn Lothbrok, Judith of Northumbria, Lagertha e Ragnar Lothbrok. Como Dinâmico (Dynamo) temos o Rollo Sigurdsson, como Protetor (Protector) o Ubbe Ragnarsson e como Professor (Teacher) a Torvi. Dentre os Visionários (Visionary) temos o Floki, Harald Finehair, Ivar Ragnarsson e Ragnar Lothbrok.
+
+```{r}
+myers_briggs |> 
+  filter(uni_name == "Vikings")  |>
+  group_by(char_name) |> 
+  mutate(max_match = max(avg_match_perc)) |> 
+  ungroup() |> 
+  filter(max_match == avg_match_perc) |> 
+  group_by(label, char_name) |> 
+  count() |> 
+  select(-n) |> 
+  knitr::kable(col.names = c("Personalidade", "Personagem"))
+```
+
+## Psych Stats
+
+O primeiro passo para analisar as personalidades de todos os personagens foi recuperar quais eram iguais entre todos eles.
+
+```{r, message=FALSE}
+psych_stats |> 
+  filter(char_name %in% c("Ragnar Lothbrok",
+                          "Floki",
+                          "Lagertha",
+                          "Rollo Sigurdsson",
+                          "Ivar Ragnarsson",
+                          "Bjorn Lothbrok",
+                          "Torvi",
+                          "Harald Finehair",
+                          "Ubbe Ragnarsson",
+                          "Judith of Northumbria")) |> 
+  group_by(question, personality) |> 
+  summarise(n = n(), .groups = "drop") |> 
+  filter(n == 10) |> 
+  select(-n) |> 
+  head() |> 
+  knitr::kable(col.names = c("Pergunta", "Personalidade"))
+```
+
+Feito isso, escolhi seis das personalidades e plotei através de um gráfico de radar a porcentagem de cada personalidade de cada personagem.
+
+-   **Badass:** Dos 10 personagens, os que tiveram maior % de personalidade atrelada à *badass* foram Bjorn Lothbrok, Lagertha e Ragnar Lothbrok, que são respectivamente, filho, mãe e pai.\
+-   **Active:** Novamente quem apareceu foi Bjorn Lothbrok, Lagertha e Ragnar Lothbrok como os mais ativos.\
+-   **Adventurous:** Como mais aventureiros temos o Floki, o Ivar, Lagertha, Ragnar Lothbrok e Rollo Sigurdsson.\
+-   **Curious:** Dentre os curiosos estão Bjorn Lothbrok, Floki, Lagertha e Ragnar Lothbrok.\
+-   **Alert:** Os mais alertas foram Floki, Ivar, Lagertha e Ragnar Lothbrok.\
+-   **Suspicious:** Dos 10 personagens, os considerados desconfiados foram o Harald Finehair, Ivar, Judith of Northumbria, Lagertha, Ragnar Lothbrok e Rollo Sigurdsson.
+
+```{r, message=FALSE}
+scores <- psych_stats |> 
+  filter(char_name %in% c("Ragnar Lothbrok",
+                          "Floki",
+                          "Lagertha",
+                          "Rollo Sigurdsson",
+                          "Ivar Ragnarsson",
+                          "Bjorn Lothbrok",
+                          "Torvi",
+                          "Harald Finehair",
+                          "Ubbe Ragnarsson",
+                          "Judith of Northumbria"),
+         question %in% c("active/slothful",
+                         "adventurous/stick-in-the-mud",
+                         "alert/oblivious",
+                         "apathetic/curious",
+                         "awkward/suspicious",
+                         "badass/weakass")) |>  
+  select(c(char_name, personality, avg_rating)) |>
+  mutate(group = char_name) |> rename(name = char_name) |> 
+  mutate(across(where(is.numeric), ~ .x * 0.01)) |> 
+  pivot_wider(names_from = "personality", values_from = "avg_rating")
+
+facet_scores <- scores |> mutate(facet1 = name) |> column_to_rownames(var = "name")
+
+grafico_radar <- ggradar2(plot.data = facet_scores, 
+         multiplots = TRUE, 
+         plot.legend = FALSE, 
+         polygonfill = FALSE, 
+         gridline.label = seq(0, 100, 50), 
+         axis.label.size = 22, grid.label.size = 20) +
+  facet_wrap(vars(group), ncol = 2) + 
+  coord_cartesian(clip = "off") + 
+  theme(text = element_text(size = 150, family = font)) + scale_color_brewer(palette = "Spectral")
+
+
+ggsave("radar_graph.png",
+       plot = last_plot(),
+       device = "png",
+       width = 15,
+       height = 22)  
+```
+
+![](radar_graph.png)
+
+## Considerações Finais
+
+Os resultados obtidos para a personalidade de cada personagem está bastante de acordo com o que se observa de cada um na série.
+
+<center>
+
+<iframe src="https://giphy.com/embed/l2QZY5QBQzdNRyOuk" width="480" height="270" frameBorder="0" class="giphy-embed" allowFullScreen>
+
+</iframe>
+
+<p><a href="https://giphy.com/gifs/season-3-vikings-s3e1-l2QZY5QBQzdNRyOuk">via GIPHY</a></p>
+
+</center>
